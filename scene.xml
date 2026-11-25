@@ -1,0 +1,298 @@
+<mujoco model="jetracer_figure8_track">
+  <!--
+    Waveshare JetRacer AI Kit - Professional Figure-8 Race Track & Sim2Real Arena
+    Features:
+    - Symmetric Figure-8 (Lemniscate) race course with smooth continuous curvature
+    - Active crossing intersection with clear throat markers and sightlines
+    - 100% VISIBLE Red & White perimeter barrier walls enclosing the entire arena
+    - Alternating rumble curbs at high-G corner apexes
+    - Infield cylindrical tire/barrier hubs with safe track clearance
+    - Dual tracking & birds-eye cameras
+    - Self-contained vehicle inclusion via <include file="jetracer.xml"/>
+  -->
+  <compiler angle="radian" autolimits="true"/>
+
+  <option timestep="0.002" integrator="implicitfast" iterations="50" solver="Newton">
+    <flag contact="enable" energy="enable"/>
+  </option>
+
+  <default>
+    <!-- Visual Markings (group 2, zero mass, non-colliding) -->
+    <default class="track_visual">
+      <geom group="2" contype="0" conaffinity="0" density="0" mass="0"/>
+    </default>
+    <!-- Solid & 100% VISIBLE Track Barriers & Cones (group 0 is ALWAYS visible in Studio) -->
+    <default class="track_collision">
+      <geom group="0" contype="1" conaffinity="1" condim="3" solref="0.004 1" solimp="0.95 0.99 0.001"/>
+    </default>
+  </default>
+
+  <visual>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.75 0.75 0.75" specular="0.25 0.25 0.25"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="140" elevation="-30" offwidth="1920" offheight="1080"/>
+  </visual>
+
+  <asset>
+    <!-- Sky & Ground Visuals -->
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.4 0.6 0.8" rgb2="0.1 0.15 0.2"
+             width="512" height="512"/>
+    <texture name="asphalt_tex" type="2d" builtin="checker" rgb1="0.18 0.18 0.20" rgb2="0.22 0.22 0.24"
+             width="512" height="512" mark="none"/>
+    <material name="asphalt" texture="asphalt_tex" texrepeat="25 25" reflectance="0.08"
+              roughness="0.8" specular="0.1"/>
+
+    <!-- Track Barrier & Obstacle Materials -->
+    <material name="barrier_red" rgba="0.88 0.15 0.15 1.0" metallic="0.2" roughness="0.4"/>
+    <material name="barrier_white" rgba="0.95 0.95 0.95 1.0" metallic="0.2" roughness="0.4"/>
+    <material name="lane_yellow" rgba="0.95 0.82 0.10 1.0" reflectance="0.1"/>
+    <material name="lane_white" rgba="0.95 0.95 0.95 1.0" reflectance="0.1"/>
+    <material name="cone_orange" rgba="0.95 0.40 0.05 1.0" metallic="0.1" roughness="0.5"/>
+    <material name="curb_red" rgba="0.85 0.15 0.15 1.0" reflectance="0.1"/>
+    <material name="curb_white" rgba="0.92 0.92 0.92 1.0" reflectance="0.1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Sunlight and Ambience -->
+    <light directional="true" pos="0 0 10" dir="0.2 0.3 -1" diffuse="0.85 0.85 0.85" specular="0.35 0.35 0.35" castshadow="true"/>
+    <light directional="true" pos="-5 -5 6" dir="-0.5 -0.5 -0.7" diffuse="0.35 0.35 0.40" specular="0.1 0.1 0.1" castshadow="false"/>
+
+    <!-- Ground Track Plane (Level surface at z=0) -->
+    <geom name="track_ground" type="plane" size="25 25 0.1" material="asphalt"
+          condim="4" friction="1.0 0.01 0.002" solref="0.004 1" solimp="0.95 0.99 0.001"/>
+
+    <!-- Overview Tracking Cameras -->
+    <camera name="track_overview" pos="0 -7.5 6.0" xyaxes="1 0 0 0 0.6 0.8"/>
+    <camera name="track_birds_eye" pos="0 0 10.5" xyaxes="1 0 0 0 1 0"/>
+    <camera name="intersection_cam" pos="0 0 3.5" xyaxes="1 0 0 0 0.4 0.9"/>
+    <camera name="car_chase_cam" mode="trackcom" target="jetracer" pos="-1.2 0 0.5" xyaxes="0 -1 0 0.35 0 0.94"/>
+
+    <!-- ============================================================ -->
+    <!-- 1. VISIBLE ARENA PERIMETER BARRIER WALLS (100% VISIBLE)      -->
+    <!-- ============================================================ -->
+    <!-- North Wall (+X = +8.0m) -->
+    <geom name="wall_north_1" class="track_collision" type="box" pos="8.0 3.0 0.20" size="0.20 3.0 0.20" material="barrier_red"/>
+    <geom name="wall_north_2" class="track_collision" type="box" pos="8.0 -3.0 0.20" size="0.20 3.0 0.20" material="barrier_white"/>
+    
+    <!-- South Wall (-X = -8.0m) -->
+    <geom name="wall_south_1" class="track_collision" type="box" pos="-8.0 3.0 0.20" size="0.20 3.0 0.20" material="barrier_white"/>
+    <geom name="wall_south_2" class="track_collision" type="box" pos="-8.0 -3.0 0.20" size="0.20 3.0 0.20" material="barrier_red"/>
+
+    <!-- East Wall (+Y = +6.0m) -->
+    <geom name="wall_east_1" class="track_collision" type="box" pos="4.0 6.0 0.20" size="4.0 0.20 0.20" material="barrier_white"/>
+    <geom name="wall_east_2" class="track_collision" type="box" pos="-4.0 6.0 0.20" size="4.0 0.20 0.20" material="barrier_red"/>
+
+    <!-- West Wall (-Y = -6.0m) -->
+    <geom name="wall_west_1" class="track_collision" type="box" pos="4.0 -6.0 0.20" size="4.0 0.20 0.20" material="barrier_red"/>
+    <geom name="wall_west_2" class="track_collision" type="box" pos="-4.0 -6.0 0.20" size="4.0 0.20 0.20" material="barrier_white"/>
+
+    <!-- Corner Chamfers -->
+    <geom name="wall_ne" class="track_collision" type="box" pos="6.6 4.6 0.20" size="1.8 0.20 0.20"
+          quat="0.9239 0 0 0.3827" material="barrier_red"/>
+    <geom name="wall_nw" class="track_collision" type="box" pos="6.6 -4.6 0.20" size="1.8 0.20 0.20"
+          quat="0.9239 0 0 -0.3827" material="barrier_white"/>
+    <geom name="wall_se" class="track_collision" type="box" pos="-6.6 4.6 0.20" size="1.8 0.20 0.20"
+          quat="0.9239 0 0 -0.3827" material="barrier_white"/>
+    <geom name="wall_sw" class="track_collision" type="box" pos="-6.6 -4.6 0.20" size="1.8 0.20 0.20"
+          quat="0.9239 0 0 0.3827" material="barrier_red"/>
+
+    <!-- ============================================================ -->
+    <!-- 2. INFIELD BARRIER HUBS & INTERSECTION GUIDE CONES           -->
+    <!-- ============================================================ -->
+    <!-- Left Loop Infield Barrier Hub (centered at -2.1, 0) -->
+    <body name="hub_left" pos="-2.1 0 0">
+      <geom name="hub_l_col" class="track_collision" type="cylinder" pos="0 0 0.15" size="0.35 0.15" material="barrier_red"/>
+      <geom name="hub_l_top" class="track_visual" type="cylinder" pos="0 0 0.30" size="0.36 0.01" material="barrier_white"/>
+    </body>
+
+    <!-- Right Loop Infield Barrier Hub (centered at +2.1, 0) -->
+    <body name="hub_right" pos="2.1 0 0">
+      <geom name="hub_r_col" class="track_collision" type="cylinder" pos="0 0 0.15" size="0.35 0.15" material="barrier_white"/>
+      <geom name="hub_r_top" class="track_visual" type="cylinder" pos="0 0 0.30" size="0.36 0.01" material="barrier_red"/>
+    </body>
+
+    <!-- Intersection Corner Guide Cones (Safe clearance outside lane) -->
+    <body name="cone_ne" pos="1.4 1.4 0"><geom name="cone_ne_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
+    <body name="cone_se" pos="1.4 -1.4 0"><geom name="cone_se_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
+    <body name="cone_nw" pos="-1.4 1.4 0"><geom name="cone_nw_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
+    <body name="cone_sw" pos="-1.4 -1.4 0"><geom name="cone_sw_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
+
+    <!-- Start / Finish Line at (x=0, y=0) crossing diagonal -->
+    <geom name="line_start" class="track_visual" type="box" pos="0 0 0.001" euler="0 0 2.385" size="0.55 0.08 0.001" material="lane_white"/>
+
+    <!-- ============================================================ -->
+    <!-- 3. FIGURE-8 CENTERLINE DASHED MARKINGS (Yellow)          -->
+    <!-- ============================================================ -->
+    <geom name="dash_00" class="track_visual" type="box" pos="0.000 0.000 0.001" euler="0 0 0.757" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_01" class="track_visual" type="box" pos="0.563 0.525 0.001" euler="0 0 0.738" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_02" class="track_visual" type="box" pos="1.112 0.999 0.001" euler="0 0 0.677" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_03" class="track_visual" type="box" pos="1.634 1.375 0.001" euler="0 0 0.557" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_04" class="track_visual" type="box" pos="2.116 1.617 0.001" euler="0 0 0.346" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_05" class="track_visual" type="box" pos="2.546 1.700 0.001" euler="0 0 0.000" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_06" class="track_visual" type="box" pos="2.912 1.617 0.001" euler="0 0 -0.461" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_07" class="track_visual" type="box" pos="3.208 1.375 0.001" euler="0 0 -0.885" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_08" class="track_visual" type="box" pos="3.424 0.999 0.001" euler="0 0 -1.186" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_09" class="track_visual" type="box" pos="3.556 0.525 0.001" euler="0 0 -1.398" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_10" class="track_visual" type="box" pos="3.600 0.000 0.001" euler="0 0 -1.571" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_11" class="track_visual" type="box" pos="3.556 -0.525 0.001" euler="0 0 -1.743" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_12" class="track_visual" type="box" pos="3.424 -0.999 0.001" euler="0 0 -1.955" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_13" class="track_visual" type="box" pos="3.208 -1.375 0.001" euler="0 0 -2.256" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_14" class="track_visual" type="box" pos="2.912 -1.617 0.001" euler="0 0 -2.681" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_15" class="track_visual" type="box" pos="2.546 -1.700 0.001" euler="0 0 -3.142" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_16" class="track_visual" type="box" pos="2.116 -1.617 0.001" euler="0 0 2.795" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_17" class="track_visual" type="box" pos="1.634 -1.375 0.001" euler="0 0 2.584" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_18" class="track_visual" type="box" pos="1.112 -0.999 0.001" euler="0 0 2.465" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_19" class="track_visual" type="box" pos="0.563 -0.525 0.001" euler="0 0 2.404" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_20" class="track_visual" type="box" pos="0.000 -0.000 0.001" euler="0 0 2.385" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_21" class="track_visual" type="box" pos="-0.563 0.525 0.001" euler="0 0 2.404" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_22" class="track_visual" type="box" pos="-1.112 0.999 0.001" euler="0 0 2.465" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_23" class="track_visual" type="box" pos="-1.634 1.375 0.001" euler="0 0 2.584" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_24" class="track_visual" type="box" pos="-2.116 1.617 0.001" euler="0 0 2.795" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_25" class="track_visual" type="box" pos="-2.546 1.700 0.001" euler="0 0 3.142" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_26" class="track_visual" type="box" pos="-2.912 1.617 0.001" euler="0 0 -2.681" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_27" class="track_visual" type="box" pos="-3.208 1.375 0.001" euler="0 0 -2.256" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_28" class="track_visual" type="box" pos="-3.424 0.999 0.001" euler="0 0 -1.955" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_29" class="track_visual" type="box" pos="-3.556 0.525 0.001" euler="0 0 -1.743" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_30" class="track_visual" type="box" pos="-3.600 0.000 0.001" euler="0 0 -1.571" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_31" class="track_visual" type="box" pos="-3.556 -0.525 0.001" euler="0 0 -1.398" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_32" class="track_visual" type="box" pos="-3.424 -0.999 0.001" euler="0 0 -1.186" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_33" class="track_visual" type="box" pos="-3.208 -1.375 0.001" euler="0 0 -0.885" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_34" class="track_visual" type="box" pos="-2.912 -1.617 0.001" euler="0 0 -0.461" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_35" class="track_visual" type="box" pos="-2.546 -1.700 0.001" euler="0 0 -0.000" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_36" class="track_visual" type="box" pos="-2.116 -1.617 0.001" euler="0 0 0.346" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_37" class="track_visual" type="box" pos="-1.634 -1.375 0.001" euler="0 0 0.557" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_38" class="track_visual" type="box" pos="-1.112 -0.999 0.001" euler="0 0 0.677" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <geom name="dash_39" class="track_visual" type="box" pos="-0.563 -0.525 0.001" euler="0 0 0.738" size="0.14 0.03 0.001" material="lane_yellow"/>
+    <!-- ============================================================ -->
+    <!-- 4. FIGURE-8 LANE BOUNDARIES (White)                      -->
+    <!-- ============================================================ -->
+    <geom name="edge_l_00" class="track_visual" type="box" pos="-0.378 0.400 0.001" euler="0 0 0.757" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_00" class="track_visual" type="box" pos="0.378 -0.400 0.001" euler="0 0 0.757" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_01" class="track_visual" type="box" pos="0.061 0.811 0.001" euler="0 0 0.746" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_01" class="track_visual" type="box" pos="0.807 0.003 0.001" euler="0 0 0.746" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_02" class="track_visual" type="box" pos="0.503 1.207 0.001" euler="0 0 0.711" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_02" class="track_visual" type="box" pos="1.220 0.373 0.001" euler="0 0 0.711" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_03" class="track_visual" type="box" pos="0.945 1.566 0.001" euler="0 0 0.647" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_03" class="track_visual" type="box" pos="1.608 0.689 0.001" euler="0 0 0.647" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_04" class="track_visual" type="box" pos="1.388 1.869 0.001" euler="0 0 0.545" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_04" class="track_visual" type="box" pos="1.958 0.929 0.001" euler="0 0 0.545" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_05" class="track_visual" type="box" pos="1.838 2.099 0.001" euler="0 0 0.386" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_05" class="track_visual" type="box" pos="2.252 1.080 0.001" euler="0 0 0.386" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_06" class="track_visual" type="box" pos="2.305 2.231 0.001" euler="0 0 0.151" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_06" class="track_visual" type="box" pos="2.470 1.144 0.001" euler="0 0 0.151" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_07" class="track_visual" type="box" pos="2.788 2.230 0.001" euler="0 0 -0.170" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_07" class="track_visual" type="box" pos="2.602 1.146 0.001" euler="0 0 -0.170" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_08" class="track_visual" type="box" pos="3.242 2.063 0.001" euler="0 0 -0.533" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_08" class="track_visual" type="box" pos="2.683 1.116 0.001" euler="0 0 -0.533" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_09" class="track_visual" type="box" pos="3.603 1.759 0.001" euler="0 0 -0.857" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_09" class="track_visual" type="box" pos="2.772 1.039 0.001" euler="0 0 -0.857" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_10" class="track_visual" type="box" pos="3.858 1.374 0.001" euler="0 0 -1.106" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_10" class="track_visual" type="box" pos="2.874 0.881 0.001" euler="0 0 -1.106" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_11" class="track_visual" type="box" pos="4.024 0.941 0.001" euler="0 0 -1.292" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_11" class="track_visual" type="box" pos="2.967 0.639 0.001" euler="0 0 -1.292" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_12" class="track_visual" type="box" pos="4.119 0.479 0.001" euler="0 0 -1.440" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_12" class="track_visual" type="box" pos="3.028 0.335 0.001" euler="0 0 -1.440" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_13" class="track_visual" type="box" pos="4.150 0.000 0.001" euler="0 0 -1.571" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_13" class="track_visual" type="box" pos="3.050 0.000 0.001" euler="0 0 -1.571" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_14" class="track_visual" type="box" pos="4.119 -0.479 0.001" euler="0 0 -1.701" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_14" class="track_visual" type="box" pos="3.028 -0.335 0.001" euler="0 0 -1.701" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_15" class="track_visual" type="box" pos="4.024 -0.941 0.001" euler="0 0 -1.850" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_15" class="track_visual" type="box" pos="2.967 -0.639 0.001" euler="0 0 -1.850" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_16" class="track_visual" type="box" pos="3.858 -1.374 0.001" euler="0 0 -2.036" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_16" class="track_visual" type="box" pos="2.874 -0.881 0.001" euler="0 0 -2.036" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_17" class="track_visual" type="box" pos="3.603 -1.759 0.001" euler="0 0 -2.285" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_17" class="track_visual" type="box" pos="2.772 -1.039 0.001" euler="0 0 -2.285" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_18" class="track_visual" type="box" pos="3.242 -2.063 0.001" euler="0 0 -2.609" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_18" class="track_visual" type="box" pos="2.683 -1.116 0.001" euler="0 0 -2.609" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_19" class="track_visual" type="box" pos="2.788 -2.230 0.001" euler="0 0 -2.972" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_19" class="track_visual" type="box" pos="2.602 -1.146 0.001" euler="0 0 -2.972" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_20" class="track_visual" type="box" pos="2.305 -2.231 0.001" euler="0 0 2.991" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_20" class="track_visual" type="box" pos="2.470 -1.144 0.001" euler="0 0 2.991" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_21" class="track_visual" type="box" pos="1.838 -2.099 0.001" euler="0 0 2.755" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_21" class="track_visual" type="box" pos="2.252 -1.080 0.001" euler="0 0 2.755" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_22" class="track_visual" type="box" pos="1.388 -1.869 0.001" euler="0 0 2.597" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_22" class="track_visual" type="box" pos="1.958 -0.929 0.001" euler="0 0 2.597" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_23" class="track_visual" type="box" pos="0.945 -1.566 0.001" euler="0 0 2.494" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_23" class="track_visual" type="box" pos="1.608 -0.689 0.001" euler="0 0 2.494" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_24" class="track_visual" type="box" pos="0.503 -1.207 0.001" euler="0 0 2.431" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_24" class="track_visual" type="box" pos="1.220 -0.373 0.001" euler="0 0 2.431" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_25" class="track_visual" type="box" pos="0.061 -0.811 0.001" euler="0 0 2.396" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_25" class="track_visual" type="box" pos="0.807 -0.003 0.001" euler="0 0 2.396" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_26" class="track_visual" type="box" pos="-0.378 -0.400 0.001" euler="0 0 2.385" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_26" class="track_visual" type="box" pos="0.378 0.400 0.001" euler="0 0 2.385" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_27" class="track_visual" type="box" pos="-0.807 0.003 0.001" euler="0 0 2.396" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_27" class="track_visual" type="box" pos="-0.061 0.811 0.001" euler="0 0 2.396" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_28" class="track_visual" type="box" pos="-1.220 0.373 0.001" euler="0 0 2.431" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_28" class="track_visual" type="box" pos="-0.503 1.207 0.001" euler="0 0 2.431" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_29" class="track_visual" type="box" pos="-1.608 0.689 0.001" euler="0 0 2.494" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_29" class="track_visual" type="box" pos="-0.945 1.566 0.001" euler="0 0 2.494" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_30" class="track_visual" type="box" pos="-1.958 0.929 0.001" euler="0 0 2.597" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_30" class="track_visual" type="box" pos="-1.388 1.869 0.001" euler="0 0 2.597" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_31" class="track_visual" type="box" pos="-2.252 1.080 0.001" euler="0 0 2.755" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_31" class="track_visual" type="box" pos="-1.838 2.099 0.001" euler="0 0 2.755" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_32" class="track_visual" type="box" pos="-2.470 1.144 0.001" euler="0 0 2.991" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_32" class="track_visual" type="box" pos="-2.305 2.231 0.001" euler="0 0 2.991" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_33" class="track_visual" type="box" pos="-2.602 1.146 0.001" euler="0 0 -2.972" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_33" class="track_visual" type="box" pos="-2.788 2.230 0.001" euler="0 0 -2.972" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_34" class="track_visual" type="box" pos="-2.683 1.116 0.001" euler="0 0 -2.609" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_34" class="track_visual" type="box" pos="-3.242 2.063 0.001" euler="0 0 -2.609" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_35" class="track_visual" type="box" pos="-2.772 1.039 0.001" euler="0 0 -2.285" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_35" class="track_visual" type="box" pos="-3.603 1.759 0.001" euler="0 0 -2.285" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_36" class="track_visual" type="box" pos="-2.874 0.881 0.001" euler="0 0 -2.036" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_36" class="track_visual" type="box" pos="-3.858 1.374 0.001" euler="0 0 -2.036" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_37" class="track_visual" type="box" pos="-2.967 0.639 0.001" euler="0 0 -1.850" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_37" class="track_visual" type="box" pos="-4.024 0.941 0.001" euler="0 0 -1.850" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_38" class="track_visual" type="box" pos="-3.028 0.335 0.001" euler="0 0 -1.701" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_38" class="track_visual" type="box" pos="-4.119 0.479 0.001" euler="0 0 -1.701" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_39" class="track_visual" type="box" pos="-3.050 0.000 0.001" euler="0 0 -1.571" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_39" class="track_visual" type="box" pos="-4.150 0.000 0.001" euler="0 0 -1.571" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_40" class="track_visual" type="box" pos="-3.028 -0.335 0.001" euler="0 0 -1.440" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_40" class="track_visual" type="box" pos="-4.119 -0.479 0.001" euler="0 0 -1.440" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_41" class="track_visual" type="box" pos="-2.967 -0.639 0.001" euler="0 0 -1.292" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_41" class="track_visual" type="box" pos="-4.024 -0.941 0.001" euler="0 0 -1.292" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_42" class="track_visual" type="box" pos="-2.874 -0.881 0.001" euler="0 0 -1.106" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_42" class="track_visual" type="box" pos="-3.858 -1.374 0.001" euler="0 0 -1.106" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_43" class="track_visual" type="box" pos="-2.772 -1.039 0.001" euler="0 0 -0.857" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_43" class="track_visual" type="box" pos="-3.603 -1.759 0.001" euler="0 0 -0.857" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_44" class="track_visual" type="box" pos="-2.683 -1.116 0.001" euler="0 0 -0.533" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_44" class="track_visual" type="box" pos="-3.242 -2.063 0.001" euler="0 0 -0.533" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_45" class="track_visual" type="box" pos="-2.602 -1.146 0.001" euler="0 0 -0.170" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_45" class="track_visual" type="box" pos="-2.788 -2.230 0.001" euler="0 0 -0.170" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_46" class="track_visual" type="box" pos="-2.470 -1.144 0.001" euler="0 0 0.151" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_46" class="track_visual" type="box" pos="-2.305 -2.231 0.001" euler="0 0 0.151" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_47" class="track_visual" type="box" pos="-2.252 -1.080 0.001" euler="0 0 0.386" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_47" class="track_visual" type="box" pos="-1.838 -2.099 0.001" euler="0 0 0.386" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_48" class="track_visual" type="box" pos="-1.958 -0.929 0.001" euler="0 0 0.545" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_48" class="track_visual" type="box" pos="-1.388 -1.869 0.001" euler="0 0 0.545" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_49" class="track_visual" type="box" pos="-1.608 -0.689 0.001" euler="0 0 0.647" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_49" class="track_visual" type="box" pos="-0.945 -1.566 0.001" euler="0 0 0.647" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_50" class="track_visual" type="box" pos="-1.220 -0.373 0.001" euler="0 0 0.711" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_50" class="track_visual" type="box" pos="-0.503 -1.207 0.001" euler="0 0 0.711" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_l_51" class="track_visual" type="box" pos="-0.807 -0.003 0.001" euler="0 0 0.746" size="0.12 0.02 0.001" material="lane_white"/>
+    <geom name="edge_r_51" class="track_visual" type="box" pos="-0.061 -0.811 0.001" euler="0 0 0.746" size="0.12 0.02 0.001" material="lane_white"/>
+    <!-- ============================================================ -->
+    <!-- 5. APEX RUMBLE CURBS (Alternating Red/White)             -->
+    <!-- ============================================================ -->
+    <geom name="curb_r_00" class="track_visual" type="box" pos="3.969 1.374 0.008" euler="0 0 -1.128" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_r_01" class="track_visual" type="box" pos="4.111 1.001 0.008" euler="0 0 -1.281" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_r_02" class="track_visual" type="box" pos="4.201 0.609 0.008" euler="0 0 -1.407" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_r_03" class="track_visual" type="box" pos="4.245 0.204 0.008" euler="0 0 -1.518" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_r_04" class="track_visual" type="box" pos="4.245 -0.204 0.008" euler="0 0 -1.624" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_r_05" class="track_visual" type="box" pos="4.201 -0.609 0.008" euler="0 0 -1.735" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_r_06" class="track_visual" type="box" pos="4.111 -1.001 0.008" euler="0 0 -1.861" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_r_07" class="track_visual" type="box" pos="3.969 -1.374 0.008" euler="0 0 -2.014" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_l_00" class="track_visual" type="box" pos="-3.969 1.374 0.008" euler="0 0 -2.014" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_l_01" class="track_visual" type="box" pos="-4.111 1.001 0.008" euler="0 0 -1.861" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_l_02" class="track_visual" type="box" pos="-4.201 0.609 0.008" euler="0 0 -1.735" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_l_03" class="track_visual" type="box" pos="-4.245 0.204 0.008" euler="0 0 -1.624" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_l_04" class="track_visual" type="box" pos="-4.245 -0.204 0.008" euler="0 0 -1.518" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_l_05" class="track_visual" type="box" pos="-4.201 -0.609 0.008" euler="0 0 -1.407" size="0.10 0.08 0.008" material="curb_white"/>
+    <geom name="curb_l_06" class="track_visual" type="box" pos="-4.111 -1.001 0.008" euler="0 0 -1.281" size="0.10 0.08 0.008" material="curb_red"/>
+    <geom name="curb_l_07" class="track_visual" type="box" pos="-3.969 -1.374 0.008" euler="0 0 -1.128" size="0.10 0.08 0.008" material="curb_white"/>
+  </worldbody>
+
+  <!-- ============================================================ -->
+  <!-- JETRACER MODEL INCLUSION                                     -->
+  <!-- ============================================================ -->
+  <include file="jetracer.xml"/>
+</mujoco>
