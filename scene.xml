@@ -29,6 +29,7 @@
 
   <visual>
     <headlight ambient="0.35 0.35 0.35" diffuse="0.75 0.75 0.75" specular="0.25 0.25 0.25"/>
+    <map znear="0.0005"/>
     <rgba haze="0.15 0.25 0.35 1"/>
     <global azimuth="140" elevation="-30" offwidth="1920" offheight="1080"/>
   </visual>

@@ -295,7 +295,10 @@
       <site name="imu_site" pos="0.050 0 0.038" type="box" size="0.008 0.008 0.003" group="4" rgba="0.95 0.25 0.25 0.50"/>
       <site name="lidar_site" pos="0.0965 0 0.1373" type="cylinder" size="0.035 0.004" group="4" rgba="0.15 0.80 0.85 0.40"/>
       <site name="camera_optical_frame" pos="0.1731 0 0.1064" type="sphere" size="0.004" group="4" rgba="0.90 0.80 0.15 0.50"/>
-      <camera name="front_camera" pos="0.1731 0 0.1064" xyaxes="0 -1 0 0.1736 0 0.9848" fovy="120"/>
+      <camera name="front_camera" pos="0.1731 0 0.1064" xyaxes="0 -1 0 0.4226 0 0.9063" fovy="120"/>
+
+      <!-- Solid Front Bumper Shield: Prevents tall obstacles/cylinders from clipping into camera lens -->
+      <geom name="front_bumper_shield" class="collision_chassis" type="box" pos="0.192 0 0.065" size="0.015 0.095 0.055" mass="0.001" rgba="0.10 0.10 0.10 0.0"/>
 
       <!-- ============================================================ -->
       <!-- 4. ACTIVE STEERING LINKAGE (Servo Horn, Tie-Rod, Drag Link)  -->
@@ -321,7 +324,7 @@
       <!-- Front Left Steering Knuckle (Kingpin pos: [0.1525, 0.06094, 0.0325]) -->
       <body name="front_left_steering" pos="0.1525 0.06094 0.0325">
         <joint name="front_left_steering_joint" type="hinge" axis="0 0 1"
-               range="-0.45 0.45" damping="0.05" armature="0.001"/>
+               range="-0.60 0.60" damping="0.05" armature="0.001"/>
         <geom class="visual" mesh="knuckle_fl_vis" material="carbon_black"/>
         <geom name="knuckle_fl_col" class="collision_chassis" type="box" pos="0 0.005 0" size="0.008 0.008 0.012" mass="0.015"/>
 
@@ -338,7 +341,7 @@
       <!-- Front Right Steering Knuckle (Kingpin pos: [0.1525, -0.06094, 0.0325]) -->
       <body name="front_right_steering" pos="0.1525 -0.06094 0.0325">
         <joint name="front_right_steering_joint" type="hinge" axis="0 0 1"
-               range="-0.45 0.45" damping="0.05" armature="0.001"/>
+               range="-0.60 0.60" damping="0.05" armature="0.001"/>
         <geom class="visual" mesh="knuckle_fr_vis" material="carbon_black"/>
         <geom name="knuckle_fr_col" class="collision_chassis" type="box" pos="0 -0.005 0" size="0.008 0.008 0.012" mass="0.015"/>
 
@@ -417,7 +420,7 @@
   <!-- ============================================================ -->
   <actuator>
     <position name="steering" joint="front_left_steering_joint"
-              kp="25.0" kv="1.5" ctrlrange="-0.5 0.5" forcerange="-5.0 5.0"/>
+              kp="25.0" kv="1.5" ctrlrange="-0.60 0.60" forcerange="-5.0 5.0"/>
     <velocity name="rear_left_drive" joint="rear_left_wheel_joint"
               kv="0.15" ctrlrange="-50.0 50.0" forcerange="-3.0 3.0"/>
     <velocity name="rear_right_drive" joint="rear_right_wheel_joint"

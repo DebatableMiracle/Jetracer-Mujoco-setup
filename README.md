@@ -17,7 +17,7 @@
 
 ---
 
-## 📌 Overview
+##  Overview
 
 This repository provides a self-contained, physics-audited **MuJoCo simulation environment** (`jetracer.xml`, `scene.xml`) built specifically for training and evaluating **Reinforcement Learning (RL), imitation learning, and optimal control algorithms** destined for real-world deployment on the **Waveshare JetRacer** (NVIDIA Jetson Nano).
 
@@ -29,7 +29,7 @@ Instead of relying on heavy robotics middleware or crude geometric placeholders,
 
 ---
 
-## 🎯 Sim2Real Physics Fidelity
+##  Sim2Real Physics Fidelity
 
 To ensure policies trained in MuJoCo transfer cleanly to physical JetRacer hardware without destabilizing or hallucinating traction, every physical attribute has been audited and calibrated against the physical vehicle:
 
@@ -46,7 +46,7 @@ To ensure policies trained in MuJoCo transfer cleanly to physical JetRacer hardw
 
 ---
 
-## ⚙️ Mechanical & Steering Linkage
+##  Mechanical & Steering Linkage
 
 The vehicle features an active **Ackermann steering mechanism** and **rear-wheel velocity drive**:
 
@@ -89,7 +89,12 @@ flowchart TD
 
 ---
 
-## 🤖 RL & Learning Environment Interface
+##  RL & Learning Environment Interface
+
+> [!TIP]
+> **Looking for Deep Reinforcement Learning?**  
+> A complete end-to-end RL training pipeline (ResNet-18 Vision SAC, vector PPO, 8-gate checkpoint validation, and broadcast evaluation GIFs) is housed in the dedicated downstream repository: **[`jetracer_rl`](https://github.com/davesh/jetracer_rl)**.  
+> To train policies, simply clone this `jetracer_mujoco` asset repo inside `jetracer_rl`!
 
 The MuJoCo model is designed for direct integration with reinforcement learning libraries (Gymnasium, CleanRL, Stable-Baselines3, JAX/MJX):
 
@@ -97,7 +102,7 @@ The MuJoCo model is designed for direct integration with reinforcement learning 
 
 | Action Channel | MuJoCo Actuator | Control Type | Range | Hardware Unit |
 | :--- | :--- | :---: | :---: | :--- |
-| **Steering** | `steering` | Position Servo (`kp=25`, `kv=1.5`) | $[-0.45, +0.45]\text{ rad}$ | Steering angle ($\pm 25.8^\circ$) |
+| **Steering** | `steering` | Position Servo (`kp=25`, `kv=1.5`) | $[-0.60, +0.60]\text{ rad}$ | Steering angle ($\pm 34.4^\circ$, Waveshare ROS `/cmd_vel` standard) |
 | **Rear Left Drive** | `rear_left_drive` | Velocity Drive (`kv=0.15`) | $[-50.0, +50.0]\text{ rad/s}$ | Wheel angular velocity ($\pm 1.625\text{ m/s}$) |
 | **Rear Right Drive**| `rear_right_drive`| Velocity Drive (`kv=0.15`) | $[-50.0, +50.0]\text{ rad/s}$ | Wheel angular velocity ($\pm 1.625\text{ m/s}$) |
 
@@ -112,9 +117,31 @@ The MuJoCo model is designed for direct integration with reinforcement learning 
 | **Wheel Encoders** | `rear_*_encoder_*` | `(4,)` vector | Angular positions and velocities for left and right drive wheels |
 | **Vehicle Pose & Speed**| `data.qpos`, `data.qvel` | `(7,)` pose, `(6,)` vel | Exact Cartesian ground-truth position, orientation quaternion, and velocities |
 
+### 🚀 Downstream RL Repositories (Modular Setup)
+
+This repository serves as the clean, standalone **MuJoCo Asset & Physics Digital Twin** (`jetracer.xml`, `scene.xml`, `meshes/`). 
+
+If you are developing reinforcement learning training pipelines (e.g. Gymnasium environments, Stable-Baselines3 SAC/PPO, CleanRL, or JAX/MJX) in a dedicated RL repository:
+
+1. **Clone this asset repository** (or add it as a git submodule):
+   ```bash
+   git clone https://github.com/DebatableMiracle/jetracer_mujoco.git
+   ```
+2. **Import or link the XML models and meshes** into your RL project workspace:
+   ```bash
+   cp -r jetracer_mujoco/jetracer.xml jetracer_mujoco/scene.xml jetracer_mujoco/meshes/ path/to/your_rl_repo/
+   ```
+3. **Recommended MDP & Environment Formulation**:
+   - **Control Frequency**: $10.0\text{ Hz}$ ($dt = 0.10\text{ s}$, `frame_skip=50` with $2\text{ ms}$ physics timestep).
+   - **Action Space**: 2-DOF continuous: Steering angle $\in [-0.60, +0.60]\text{ rad}$ (fully compliant with Waveshare ROS `angular.x`) and Throttle/Motor velocity $\in [-50.0, +50.0]\text{ rad/s}$ ($\pm 1.625\text{ m/s}$, covering the rated $\pm 1.2\text{ m/s}$ Waveshare ROS `linear.x`).
+   - **Camera Observation**: Front-facing wide-angle camera `front_camera` calibrated at a $25.0^\circ$ downward pitch angle with near plane $z_{\text{near}} = 1.1\text{ cm}$, rendering $84\times 84\times 3$ RGB tensors directly into convolutional backbones (e.g. ResNet-18).
+   - **Reward & Penalty**: Formulate as minimum-time control with a fixed step penalty (e.g. $-1.0$ per step).
+   - **Reset on Fault (No Early Termination)**: Reset the vehicle back to the start line upon track boundary departure or barrier collision rather than terminating the episode early; this prevents early-termination reward-hacking.
+   - **Checkpoint Gate Sequencer**: Partition the Figure-8 track into 8 sequential checkpoint gates (Lemniscate loops) requiring monotonic gate clearance to prevent shortcutting across the center intersection.
+
 ---
 
-## 📸 Simulation Snapshots
+##  Simulation Snapshots
 
 <div align="center">
 
@@ -126,7 +153,7 @@ The MuJoCo model is designed for direct integration with reinforcement learning 
 
 ---
 
-## 🧪 Physics Audit & Verification Scorecard
+##  Physics Audit & Verification Scorecard
 
 Run the comprehensive automated test suite:
 
@@ -157,7 +184,7 @@ python3 test_rollout.py
 
 ---
 
-## 🚀 Quick Start & Usage
+##  Quick Start & Usage
 
 ### 1. Requirements
 
@@ -208,55 +235,61 @@ python3 teleop.py
 
 *Note: You can also drag the `steering` and `rear_left_drive` sliders directly in the browser's **Controls** side-panel when in Manual mode!*
 
-### 5. Standard Farama Gymnasium Environment (`jetracer_env.py`)
+### 5. Interactive Figure-8 Demo with Live Camera Feed (`demo.py`)
 
-The repository includes a production-ready Farama Gymnasium environment class (`gymnasium.Env`) adhering to standard RL conventions:
-
-```python
-import gymnasium as gym
-from jetracer_env import JetRacerEnv
-
-# 1. Initialize environment (vector or rgb camera observation)
-env = JetRacerEnv(obs_mode="vector", frame_skip=10)
-
-# 2. Reset with optional seed
-obs, info = env.reset(seed=42)
-
-# 3. Standard step loop with normalized actions [-1.0, 1.0]
-for _ in range(1000):
-    action = env.action_space.sample()  # [steering, throttle] in [-1.0, 1.0]
-    obs, reward, terminated, truncated, info = env.step(action)
-    
-    if terminated or truncated:
-        obs, info = env.reset()
-
-env.close()
-```
-
-#### Observation Spaces:
-- **`obs_mode="vector"` (54 dimensions, flat float32)**:
-  - Local chassis velocity ($v_x, v_y, v_z$) (3)
-  - IMU gyroscope angular velocity ($\omega_x, \omega_y, \omega_z$) (3)
-  - IMU accelerometer linear acceleration ($a_x, a_y, a_z$) (3)
-  - Front steering knuckle angle and velocity (2)
-  - 4 Wheel rotational speeds (4)
-  - RPLIDAR A1 36-beam planar range scan ($0$ to $12\text{ m}$ normalized to $[0, 1]$) (36)
-  - Track metrics: signed cross-track error $e_{\text{lat}}$, heading error $[\cos\Delta\theta, \sin\Delta\theta]$ (3)
-- **`obs_mode="rgb"`**: Front CSI camera image $(84, 84, 3)$ uint8 array.
-
-### 6. Training RL Policies with Stable-Baselines3 (`train_rl.py`)
-
-A full training and evaluation CLI is provided:
+Run the standalone interactive demo featuring dual synchronized desktop windows (3D World View + Robot Eye Camera HUD):
 
 ```bash
-# Train PPO policy for 50,000 steps with vector observations
-python3 train_rl.py --train --timesteps=50000
+python3 demo.py
+```
 
-# Evaluate the saved checkpoint
-python3 train_rl.py --eval --model_path=jetracer_ppo.zip
+<div align="center">
 
-# Run a quick random baseline benchmark
-python3 train_rl.py --random --steps=200
+| Robot Eye (IMX219) with Real-Time HUD | Figure-8 Track Arena Overview | Birds-Eye Top-Down View |
+| :---: | :---: | :---: |
+| ![Camera HUD Snapshot](snapshot_camera_hud.png) | ![Track Overview](snapshot_track_overview.png) | ![Birds Eye View](snapshot_track_birds_eye.png) |
+
+</div>
+
+- **Windows Launched**:
+  1. `[3D World View]`: Native interactive MuJoCo passive viewer window with mouse orbit, pan, and zoom.
+  2. `[JetRacer Eye]`: Live front CSI camera feed (`front_camera`, calibrated $25.0^\circ$ downward pitch) with real-time telemetry HUD overlay.
+- **Interactive Controls**:
+  - `[1]`: Autonomous Pure-Pursuit lap driving along the Figure-8 racing line.
+  - `[2]`: Manual keyboard WASD driving mode.
+  - `[R]`: Reset car back to the starting line.
+  - `[SPACE]`: Coast / Neutral.
+  - `[Q]` / `ESC`: Quit demo.
+
+### 6. Minimal Python Stepping Loop (Asset Integration Skeleton)
+
+```python
+import mujoco
+import numpy as np
+
+# Load the test track scene
+model = mujoco.MjModel.from_xml_path("scene.xml")
+data = mujoco.MjData(model)
+
+# Actuator IDs
+steer_id = model.actuator("steering").id
+drive_l_id = model.actuator("rear_left_drive").id
+drive_r_id = model.actuator("rear_right_drive").id
+
+# Step environment
+for step in range(1000):
+    # Action: steer angle (rad) and rear drive velocity (rad/s)
+    data.ctrl[steer_id] = 0.25 * np.sin(step * 0.01)
+    data.ctrl[drive_l_id] = 20.0
+    data.ctrl[drive_r_id] = 20.0
+
+    mujoco.mj_step(model, data)
+
+    # Observations:
+    speed = np.linalg.norm(data.qvel[:3])
+    accel = data.sensor("imu_accel").data
+    gyro = data.sensor("imu_gyro").data
+    l_rpm = data.sensor("rear_left_encoder_vel").data[0] * 60.0 / (2.0 * np.pi)
 ```
 
 ---
@@ -265,14 +298,13 @@ python3 train_rl.py --random --steps=200
 
 ```text
 jetracer_mujoco/
-├── jetracer.xml                  # Primary MuJoCo Sim2Real model (Z-up, 1.8kg, active linkage)
-├── scene.xml                     # Track environment with textured asphalt, lighting, and cameras
-├── jetracer_env.py               # Farama Gymnasium RL environment (vector & RGB camera observation)
-├── train_rl.py                   # Stable-Baselines3 PPO training and evaluation CLI
-├── sim_plugin.py                 # Studio sim plugin: vehicle modes, telemetry, and steering logic
+├── jetracer.xml                  # Primary MuJoCo Sim2Real model (Z-up, 1.8kg, active linkage, 25° cam)
+├── scene.xml                     # Track scene with asphalt, red/white barriers, yellow dashes, and cameras
+├── demo.py                       # Interactive Figure-8 demo (Autonomous laps, WASD manual, live camera HUD)
 ├── teleop.py                     # Real-time interactive keyboard teleoperation (WASD & Arrows)
-├── messages.py                   # Studio message definitions (DriveCommand, JetRacerTelemetry)
 ├── test_rollout.py               # 7-point automated physics & sensor audit script
+├── sim_plugin.py                 # Studio sim plugin: vehicle modes, telemetry, and steering logic
+├── messages.py                   # Studio message definitions (DriveCommand, JetRacerTelemetry)
 ├── convert_glb_sim2real.py       # CAD conversion pipeline: coordinate transform, coacd hulls, submeshes
 ├── build_sim2real_xml.py         # Programmatic XML builder with calibrated mass & equality constraints
 │
@@ -283,13 +315,15 @@ jetracer_mujoco/
 ├── jetracer_steering_linkage.gif # Animated close-up of active steering linkage in action
 ├── jetracer_track_rollout.gif    # Animated track driving rollout
 ├── steering_linkage_comparison.png # 3-state comparison sheet of the front steering mechanism
+├── snapshot_camera_hud.png       # Live front CSI camera feed with telemetry HUD
+├── snapshot_track_overview.png   # Perspective overview of the Figure-8 track arena
+├── snapshot_track_birds_eye.png  # Top-down birds-eye view of the Figure-8 track
 └── snapshot_front_quarter_sim2real.png # High-resolution rendering of the assembled asset
 ```
 
 ---
 
-## 📜 Attribution & License
+##  Attribution & License
 
 - **CAD Model**: Base 3D geometry derived from *Waveshare JetRacer for Sim2Real* by **Caldorf**, licensed under [Creative Commons Attribution (CC-BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 - **MuJoCo Asset & Kinematics**: Authored and physics-calibrated for high-fidelity Sim2Real robotics and reinforcement learning workflows.
-# Jetracer-Mujoco-setup

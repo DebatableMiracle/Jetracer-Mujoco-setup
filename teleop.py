@@ -28,9 +28,9 @@ import tty
 UDP_IP = "127.0.0.1"
 UDP_PORT = 9876
 
-MAX_STEER = 0.42       # rad (~24 deg)
+MAX_STEER = 0.60       # rad (~34.4 deg, Waveshare JetRacer ROS /cmd_vel standard)
 STEER_STEP = 0.08      # rad increment per keypress
-MAX_THROTTLE = 40.0    # rad/s (~1.3 m/s)
+MAX_THROTTLE = 36.92   # rad/s (= 1.2 m/s at r=0.0325m, Waveshare JetRacer rated speed)
 THROTTLE_STEP = 6.0    # rad/s increment per keypress
 DECAY_RATE = 0.85      # Smooth auto-centering rate when keys released
 

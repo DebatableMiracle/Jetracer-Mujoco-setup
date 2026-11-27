@@ -8,7 +8,7 @@ from mujoco.studio import messages
 class DriveCommand(messages.Snapshot):
   """UI -> sim: interactive vehicle steering and drive commands."""
 
-  steering: float = 0.0          # Front wheel steering angle (rad, [-0.45, +0.45])
+  steering: float = 0.0          # Front wheel steering angle (rad, [-0.60, +0.60], Waveshare ROS /cmd_vel standard)
   throttle: float = 0.0          # Rear wheel drive velocity (rad/s, [-50.0, +50.0])
   mode: str = "MANUAL"           # Mode: "MANUAL", "FIGURE_EIGHT", "STRAIGHT_CRUISE", "STOP"
 
