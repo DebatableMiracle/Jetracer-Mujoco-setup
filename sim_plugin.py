@@ -64,7 +64,7 @@ class SimPlugin(plugin.SimPlugin):
         if 'mode' in cmd:
           self.mode = str(cmd['mode'])
         if 'steer' in cmd:
-          self.steering_cmd = float(np.clip(cmd['steer'], -0.45, 0.45))
+          self.steering_cmd = float(np.clip(cmd['steer'], -0.60, 0.60))
         if 'throttle' in cmd:
           self.throttle_cmd = float(np.clip(cmd['throttle'], -50.0, 50.0))
         if cmd.get('reset', False):
@@ -111,7 +111,7 @@ class SimPlugin(plugin.SimPlugin):
       self.mode = cmd.mode
       if self.handle.data is not None:
         self.sim_time_start_mode = float(self.handle.data.time)
-    self.steering_cmd = float(np.clip(cmd.steering, -0.45, 0.45))
+    self.steering_cmd = float(np.clip(cmd.steering, -0.60, 0.60))
     self.throttle_cmd = float(np.clip(cmd.throttle, -50.0, 50.0))
     self.last_teleop_time = time.time()
 
@@ -180,7 +180,7 @@ class SimPlugin(plugin.SimPlugin):
       L_wb = 0.1524
       L_d = 0.60
       curvature = 2.0 * dy / (L_d ** 2)
-      target_steer = float(np.clip(np.arctan(L_wb * curvature), -0.42, 0.42))
+      target_steer = float(np.clip(np.arctan(L_wb * curvature), -0.60, 0.60))
 
       # Cornering speed control
       target_throttle = 18.0 if abs(target_steer) > 0.12 else 28.0

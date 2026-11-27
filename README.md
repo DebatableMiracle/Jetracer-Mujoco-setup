@@ -25,7 +25,7 @@ Instead of relying on heavy robotics middleware or crude geometric placeholders,
 - **Clean Python & MuJoCo Native Interface**: Step physics at over **$1000\times$ real-time** on standard CPU/GPU pipelines.
 - **Hardware-Accurate Sim2Real Parity**: 1:1 metric scale, calibrated mass distribution, dynamic steering linkage, and 4D rubber tire friction to minimize the reality gap.
 - **Rich Multimodal Observation Space**: Front-facing wide-angle camera, 360-degree planar RPLIDAR A1, 6-axis chassis IMU, and high-resolution wheel encoders.
-- **Interactive & Headless Workflows**: Immediate browser-based visualization via MuJoCo Studio WebViewer (`studiod.py`) and fast headless batch rollouts for policy training.
+- **Interactive & Headless Workflows**: Native 3D desktop visualization (`mujoco.viewer`), dual-window camera HUD demo (`demo.py`), and fast headless batch rollouts for policy training.
 
 ---
 
@@ -53,15 +53,15 @@ The vehicle features an active **Ackermann steering mechanism** and **rear-wheel
 ```mermaid
 flowchart TD
     subgraph ActionSpace ["Control Action Space"]
-        ActSteer["Steering Control<br/>u_steer ∈ [-0.45, +0.45] rad"]
+        ActSteer["Steering Control<br/>u_steer ∈ [-0.60, +0.60] rad"]
         ActDrive["Rear Drive Velocity<br/>u_drive ∈ [-50.0, +50.0] rad/s"]
     end
 
     subgraph SteeringLinkage ["Active Multi-Bar Steering Linkage"]
         ActSteer --> KingpinL["Front-Left Knuckle Kingpin<br/>(front_left_steering_joint, z=32.5mm)"]
         KingpinL -->|Ackermann Sync: polycoef='0 1 0 0 0'| KingpinR["Front-Right Knuckle Kingpin<br/>(front_right_steering_joint)"]
-        KingpinL -->|Tie-Rod Sync: polycoef='0 0.02298 0 0 0'| TieRod["Transverse Tie-Rod Bar<br/>(tie_rod_y, slide axis='0 1 0', Δy=±9.7mm)"]
-        KingpinL -->|Servo Horn Sync: polycoef='0 -1.6774 0 0 0'| ServoHorn["Steering Servo Disc Hinge<br/>(servo_horn_joint, axis='1 0 0', φ=±42°)"]
+        KingpinL -->|Tie-Rod Sync: polycoef='0 0.02298 0 0 0'| TieRod["Transverse Tie-Rod Bar<br/>(tie_rod_y, slide axis='0 1 0', Δy=±13.8mm)"]
+        KingpinL -->|Servo Horn Sync: polycoef='0 -1.6774 0 0 0'| ServoHorn["Steering Servo Disc Hinge<br/>(servo_horn_joint, axis='1 0 0', φ=±57.7°)"]
         TieRod --> DragLink["Drag Link Bar<br/>(Connects horn ball to left knuckle arm)"]
     end
 
@@ -84,8 +84,8 @@ flowchart TD
 
 ### Steering Geometry Details
 - **Kingpin Axis**: Positioned at $y = \pm 0.06094\text{ m}, z = 0.0325\text{ m}$. Wheel hubs sit at $y = \pm 0.0762\text{ m}$ (scrub radius $= 15.3\text{ mm}$).
-- **Tie-Rod Bar (`tie_rod`)**: Slides laterally along $+Y$ by $\Delta y = 0.02298 \cdot \theta_{\text{steer}}$ ($\pm 9.7\text{ mm}$ travel), maintaining steering arm synchronization.
-- **Servo Horn (`servo_horn`)**: Forward-facing disc rotates along $+X$ by $\phi_{\text{horn}} = -1.6774 \cdot \theta_{\text{steer}}$ ($\pm 42^\circ$ rotation), matching the lateral travel of the drag link ball joint within $0.5\text{ mm}$.
+- **Tie-Rod Bar (`tie_rod`)**: Slides laterally along $+Y$ by $\Delta y = 0.02298 \cdot \theta_{\text{steer}}$ ($\pm 13.8\text{ mm}$ travel at full lock $\pm 0.60\text{ rad}$), maintaining steering arm synchronization.
+- **Servo Horn (`servo_horn`)**: Forward-facing disc rotates along $+X$ by $\phi_{\text{horn}} = -1.6774 \cdot \theta_{\text{steer}}$ ($\pm 57.7^\circ$ rotation at full lock $\pm 0.60\text{ rad}$), matching the lateral travel of the drag link ball joint within $0.5\text{ mm}$.
 
 ---
 
@@ -226,18 +226,18 @@ python3 teleop.py
 
 | Key | Action | Function |
 | :---: | :--- | :--- |
-| **`W`** / **`↑`** | Throttle Forward | Accelerate rear drive wheels ($+6\text{ rad/s}$ per tap up to $40\text{ rad/s}$) |
+| **`W`** / **`↑`** | Throttle Forward | Accelerate rear drive wheels ($+6\text{ rad/s}$ per tap up to $36.9\text{ rad/s}$ / $1.2\text{ m/s}$) |
 | **`S`** / **`↓`** | Reverse / Brake | Reverse drive / active deceleration |
-| **`A`** / **`←`** | Steer Left | Pivots front steering knuckles left (up to $+24^\circ$) |
-| **`D`** / **`→`** | Steer Right | Pivots front steering knuckles right (up to $-24^\circ$) |
+| **`A`** / **`←`** | Steer Left | Pivots front steering knuckles left (up to $+0.60\text{ rad}$ / $+34.4^\circ$) |
+| **`D`** / **`→`** | Steer Right | Pivots front steering knuckles right (up to $-0.60\text{ rad}$ / $-34.4^\circ$) |
 | **`SPACE`** | Coast / Neutral | Instantly cuts throttle and centers steering |
 | **`B`** | Active Handbrake | Emergency stop |
 | **`R`** | Reset to Start Line | Spawns vehicle back at start line |
-| **`1`** | Autonomous Lap Mode | Car drives closed-loop oval track laps smoothly |
+| **`1`** | Autonomous Lap Mode | Car drives closed-loop Figure-8 laps smoothly |
 | **`2`** | Manual WASD Mode | Returns full manual control to the keyboard / UI sliders |
 | **`Q`** | Quit | Safely parks the car and exits teleop |
 
-*Note: You can also drag the `steering` and `rear_left_drive` sliders directly in the browser's **Controls** side-panel when in Manual mode!*
+*Note: You can also drag the `steering` and `rear_left_drive` sliders directly in the MuJoCo viewer's **Control** panel!*
 
 ### 5. Interactive Figure-8 Demo with Live Camera Feed (`demo.py`)
 

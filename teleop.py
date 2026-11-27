@@ -77,7 +77,7 @@ def main():
     print("    [R]       : Reset to Start      [Q]       : Quit")
     print("    [1]       : Autonomous Lap      [2]       : Manual WASD Mode")
     print("==================================================================")
-    print("  Connecting to MuJoCo Studio WebViewer (localhost:9876)...")
+    print("  Streaming UDP commands to simulation / demo.py (localhost:9876)...")
 
     try:
         tty.setraw(fd)

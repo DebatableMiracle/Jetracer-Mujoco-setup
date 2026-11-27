@@ -112,12 +112,6 @@
       <geom name="hub_r_top" class="track_visual" type="cylinder" pos="0 0 0.30" size="0.36 0.01" material="barrier_red"/>
     </body>
 
-    <!-- Intersection Corner Guide Cones (Safe clearance outside lane) -->
-    <body name="cone_ne" pos="1.4 1.4 0"><geom name="cone_ne_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
-    <body name="cone_se" pos="1.4 -1.4 0"><geom name="cone_se_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
-    <body name="cone_nw" pos="-1.4 1.4 0"><geom name="cone_nw_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
-    <body name="cone_sw" pos="-1.4 -1.4 0"><geom name="cone_sw_g" class="track_collision" type="cylinder" pos="0 0 0.12" size="0.08 0.12" material="cone_orange"/></body>
-
     <!-- Start / Finish Line at (x=0, y=0) crossing diagonal -->
     <geom name="line_start" class="track_visual" type="box" pos="0 0 0.001" euler="0 0 2.385" size="0.55 0.08 0.001" material="lane_white"/>
 

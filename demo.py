@@ -22,8 +22,10 @@ Usage:
 
 from __future__ import annotations
 import argparse
+import json
 import math
 import os
+import socket
 import sys
 import time
 
@@ -108,6 +110,16 @@ class JetRacerDemo:
             except Exception as e:
                 print(f"[Demo] Could not load SAC model ({e}). Mode 3 disabled.")
 
+        # Non-blocking UDP receiver for external teleop (e.g. teleop.py)
+        self.udp_sock = None
+        try:
+            self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp_sock.bind(("127.0.0.1", 9876))
+            self.udp_sock.setblocking(False)
+            print("[Demo] Listening for external teleop commands on UDP 127.0.0.1:9876")
+        except Exception:
+            self.udp_sock = None
+
         self.reset_to_start()
 
     def reset_to_start(self):
@@ -149,8 +161,11 @@ class JetRacerDemo:
         w, qx, qy, qz = quat[0], quat[1], quat[2], quat[3]
         yaw = math.atan2(2.0 * (w * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz))
 
-        dists = np.hypot(self.waypoints[:, 0] - x, self.waypoints[:, 1] - y)
-        closest_idx = int(np.argmin(dists))
+        # Forward local window search around current progress (prevents crossing jump)
+        search_range = 35
+        indices = np.array([(self.prev_closest_idx + i) % len(self.waypoints) for i in range(-5, search_range)])
+        dists = np.hypot(self.waypoints[indices, 0] - x, self.waypoints[indices, 1] - y)
+        closest_idx = int(indices[np.argmin(dists)])
 
         # Lookahead point (15 waypoints ahead)
         target_idx = (closest_idx + 15) % len(self.waypoints)
@@ -172,12 +187,35 @@ class JetRacerDemo:
 
     def step(self):
         """Execute one control step."""
+        # 0. Check for incoming UDP teleop packets from teleop.py
+        if self.udp_sock is not None:
+            while True:
+                try:
+                    data, _ = self.udp_sock.recvfrom(2048)
+                    cmd = json.loads(data.decode("utf-8"))
+                    if "mode" in cmd:
+                        self.mode = str(cmd["mode"])
+                    if "steer" in cmd:
+                        self.manual_steer = float(np.clip(cmd["steer"], -self.steer_ctrlrange[1], self.steer_ctrlrange[1]))
+                    if "throttle" in cmd:
+                        self.manual_throttle = float(np.clip(cmd["throttle"], -20.0, 36.92))
+                    if cmd.get("reset"):
+                        self.reset_to_start()
+                except (BlockingIOError, socket.error):
+                    break
+                except Exception:
+                    break
+
         # 1. Determine steering and throttle based on active mode
         if self.mode == "AUTONOMOUS":
             steer_cmd, throttle_cmd = self.compute_pure_pursuit()
         elif self.mode == "MANUAL":
             steer_cmd = self.manual_steer
             throttle_cmd = self.manual_throttle
+            # Smooth auto-centering decay for manual steering
+            self.manual_steer *= 0.94
+            if abs(self.manual_steer) < 0.005:
+                self.manual_steer = 0.0
         elif self.mode == "RL_POLICY" and self.rl_model is not None:
             # RL observation
             self.renderer.update_scene(self.data, camera="front_camera")
@@ -188,12 +226,12 @@ class JetRacerDemo:
             proprio = np.zeros(11, dtype=np.float32)
             proprio[0] = np.clip(v_rl / 350.0, -1.0, 1.0)
             proprio[1] = np.clip(v_rr / 350.0, -1.0, 1.0)
-            proprio[2] = self.data.ctrl[self.act_steer_id] / 0.42
+            proprio[2] = self.data.ctrl[self.act_steer_id] / self.steer_ctrlrange[1]
             proprio[3:6] = self.data.sensor("imu_accel").data
             proprio[6:9] = self.data.sensor("imu_gyro").data
             obs = {"image": img_chw, "proprio": proprio}
             act, _ = self.rl_model.predict(obs, deterministic=True)
-            steer_cmd = float(act[0] * 0.42)
+            steer_cmd = float(act[0] * self.steer_ctrlrange[1])
             throttle_cmd = float(act[1] * 35.0 if act[1] >= 0 else act[1] * 15.0)
         else:
             steer_cmd, throttle_cmd = 0.0, 0.0
@@ -210,8 +248,11 @@ class JetRacerDemo:
 
         # Track metrics
         car_pos = self.data.qpos[0:2]
-        dists = np.hypot(self.waypoints[:, 0] - car_pos[0], self.waypoints[:, 1] - car_pos[1])
-        closest_idx = int(np.argmin(dists))
+        search_range = 35
+        indices = np.array([(self.prev_closest_idx + i) % len(self.waypoints) for i in range(-5, search_range)])
+        dists = np.hypot(self.waypoints[indices, 0] - car_pos[0], self.waypoints[indices, 1] - car_pos[1])
+        closest_idx = int(indices[np.argmin(dists)])
+
         wp = self.waypoints[closest_idx]
         tangent = self.tangents[closest_idx]
         normal = np.array([-tangent[1], tangent[0]])
@@ -222,18 +263,17 @@ class JetRacerDemo:
             self.laps_completed += 1
         self.prev_closest_idx = closest_idx
 
-        # Check collisions
+        # Check collisions (for HUD telemetry warning only - no artificial respawn)
         is_collision = any(
             self.data.contact[i].geom1 in self.barrier_geom_ids or self.data.contact[i].geom2 in self.barrier_geom_ids
             for i in range(self.data.ncon)
         )
         is_out_of_bounds = abs(cross_track) > 0.55
+        is_miss = is_collision or is_out_of_bounds
 
-        is_miss = is_out_of_bounds or is_collision
-        if is_miss:
+        if is_miss and (time.time() - self.respawn_timer) > 1.5:
             self.fault_count += 1
             self.respawn_timer = time.time()
-            self.reset_to_start()
 
         v_world = self.data.qvel[0:2]
         speed = float(np.linalg.norm(v_world))
@@ -290,6 +330,73 @@ class JetRacerDemo:
 
         return bgr
 
+    def handle_keypress(self, key: int) -> bool:
+        """
+        Unified key handler for both GLFW 3D viewer and OpenCV window.
+        Returns False if user requested quit (ESC or Q), True otherwise.
+        """
+        char = chr(key).lower() if (32 <= key <= 126) else None
+
+        # Quit
+        if key == 27 or key == 256 or char == 'q':
+            return False
+
+        # Reset
+        if char == 'r':
+            self.reset_to_start()
+            print("\n[Demo] Car reset to start line.")
+            return True
+
+        # Mode switches
+        if char == '1':
+            self.mode = "AUTONOMOUS"
+            print("\n[Demo] Switched to AUTONOMOUS Pure Pursuit mode.")
+            return True
+        elif char == '2':
+            self.mode = "MANUAL"
+            self.manual_throttle = 0.0
+            self.manual_steer = 0.0
+            print("\n[Demo] Switched to MANUAL WASD mode.")
+            return True
+        elif char == '3':
+            if self.rl_model is not None:
+                self.mode = "RL_POLICY"
+                print("\n[Demo] Switched to trained VISUAL SAC AGENT mode.")
+            else:
+                print("\n[Demo] Mode 3 (RL Policy) not available (no model loaded).")
+            return True
+
+        # Coast / Stop
+        if char == ' ' or char == 'b':
+            self.manual_throttle = 0.0
+            self.manual_steer = 0.0
+            return True
+
+        # Driving keys: W/A/S/D or Arrow keys (Auto-switches to MANUAL)
+        is_up = (char == 'w' or key == 265)
+        is_down = (char == 's' or key == 264)
+        is_left = (char == 'a' or key == 263)
+        is_right = (char == 'd' or key == 262)
+
+        if is_up or is_down or is_left or is_right:
+            if self.mode != "MANUAL":
+                self.mode = "MANUAL"
+                self.manual_throttle = 0.0
+                self.manual_steer = 0.0
+                print("\n[Demo] Teleop key pressed -> Switched to MANUAL mode.")
+
+            if is_up:
+                self.manual_throttle = min(self.manual_throttle + 6.0, 36.92)
+            elif is_down:
+                self.manual_throttle = max(self.manual_throttle - 6.0, -15.0)
+
+            if is_left:
+                self.manual_steer = min(self.manual_steer + 0.10, self.steer_ctrlrange[1])
+            elif is_right:
+                self.manual_steer = max(self.manual_steer - 0.10, -self.steer_ctrlrange[1])
+
+        return True
+
     def run(self):
         print("\n" + "=" * 70)
         print(" 🏎️  JETRACER INTERACTIVE FIGURE-8 DEMO WITH LIVE CAMERA FEED")
@@ -297,23 +404,29 @@ class JetRacerDemo:
         print("  Windows Opened:")
         print("    1. [3D World View]      Native MuJoCo passive viewer window")
         print("    2. [Robot Eye (IMX219)] Live front camera feed with real-time HUD")
-        print("\n  Controls (focus either window or terminal):")
-        print("    [1]     : Autonomous Figure-8 Lap Mode (Pure Pursuit)")
-        print("    [2]     : Manual WASD Driving Mode")
-        print("    [3]     : Trained Visual SAC Agent (if checkpoint loaded)")
-        print("    [W]/[S] : Accelerate / Reverse (Manual mode)")
-        print("    [A]/[D] : Steer Left / Right   (Manual mode)")
-        print("    [SPACE] : Coast / Neutral")
-        print("    [R]     : Reset Car to Start Line")
-        print("    [Q]/ESC : Quit Demo")
+        print("\n  Controls (works in BOTH the 3D viewer & camera window!):")
+        print("    [W] / [↑] : Throttle Forward (auto-engages Manual mode)")
+        print("    [S] / [↓] : Brake / Reverse")
+        print("    [A] / [←] : Steer Left")
+        print("    [D] / [→] : Steer Right")
+        print("    [SPACE]   : Coast / Neutral")
+        print("    [1]       : Switch back to Autonomous Figure-8 Lap Mode")
+        print("    [2]       : Switch to Manual WASD Mode")
+        print("    [3]       : Switch to Trained Visual SAC Policy (if loaded)")
+        print("    [R]       : Reset Car to Start Line")
+        print("    [Q] / ESC : Quit Demo")
         print("=" * 70 + "\n")
 
-        with mujoco.viewer.launch_passive(self.model, self.data) as viewer:
+        running = True
+
+        def _on_key(key):
+            nonlocal running
+            if not self.handle_keypress(key):
+                running = False
+
+        with mujoco.viewer.launch_passive(self.model, self.data, key_callback=_on_key) as viewer:
             window_name = "JetRacer Eye — Front CSI Camera (IMX219)"
             cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
-
-            last_loop_time = time.time()
-            running = True
 
             while viewer.is_running() and running:
                 t0 = time.time()
@@ -329,35 +442,10 @@ class JetRacerDemo:
                 cv2.imshow(window_name, hud_frame)
 
                 # Process OpenCV key events (non-blocking)
-                key = cv2.waitKey(1) & 0xFF
-                if key == 27 or key == ord('q'):  # ESC or Q
-                    running = False
-                elif key == ord('1'):
-                    self.mode = "AUTONOMOUS"
-                    print("\n[Demo] Switched to AUTONOMOUS Pure Pursuit mode.")
-                elif key == ord('2'):
-                    self.mode = "MANUAL"
-                    self.manual_throttle = 0.0
-                    self.manual_steer = 0.0
-                    print("\n[Demo] Switched to MANUAL WASD mode.")
-                elif key == ord('3') and self.rl_model is not None:
-                    self.mode = "RL_POLICY"
-                    print("\n[Demo] Switched to trained VISUAL SAC AGENT mode.")
-                elif key == ord('r'):
-                    self.reset_to_start()
-                    print("\n[Demo] Car reset to start line.")
-                elif key == ord(' '):
-                    self.manual_throttle = 0.0
-                    self.manual_steer = 0.0
-                elif self.mode == "MANUAL":
-                    if key == ord('w'):
-                        self.manual_throttle = min(self.manual_throttle + 5.0, 35.0)
-                    elif key == ord('s'):
-                        self.manual_throttle = max(self.manual_throttle - 5.0, -15.0)
-                    elif key == ord('a'):
-                        self.manual_steer = min(self.manual_steer + 0.08, 0.60)
-                    elif key == ord('d'):
-                        self.manual_steer = max(self.manual_steer - 0.08, -0.60)
+                cv_key = cv2.waitKey(1) & 0xFF
+                if cv_key != 255:
+                    if not self.handle_keypress(cv_key):
+                        running = False
 
                 # Maintain target FPS
                 elapsed = time.time() - t0
@@ -366,6 +454,11 @@ class JetRacerDemo:
 
             cv2.destroyAllWindows()
             self.renderer.close()
+            if self.udp_sock is not None:
+                try:
+                    self.udp_sock.close()
+                except Exception:
+                    pass
 
         print("\n[Demo] Finished cleanly. Exiting.\n")
         os._exit(0)
