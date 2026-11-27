@@ -4,7 +4,8 @@ import mujoco
 import numpy as np
 
 def build_jetracer_xml():
-    mesh_dir = '/home/dave/development/jetracer_mujoco/meshes/glb_sim2real'
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    mesh_dir = os.path.join(repo_dir, 'meshes/glb_sim2real')
     
     # Collect collision hull meshes
     bumper_cols = sorted(glob.glob(os.path.join(mesh_dir, 'bumper_col_*.obj')))
@@ -335,7 +336,7 @@ def build_jetracer_xml():
     ])
 
     xml_text = '\n'.join(xml_lines)
-    xml_path = '/home/dave/development/jetracer_mujoco/jetracer.xml'
+    xml_path = os.path.join(repo_dir, 'jetracer.xml')
     with open(xml_path, 'w') as f:
         f.write(xml_text)
     print(f"Successfully generated {xml_path}!")

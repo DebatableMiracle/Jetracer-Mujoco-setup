@@ -5,8 +5,9 @@ import trimesh
 import coacd
 
 def main():
-    glb_path = '/home/dave/development/jetracer_mujoco/meshes/waveshare-jetracer-for-sim2real/source/sim2real-JetRacer-v0-sketchfab-v2.glb'
-    out_dir = '/home/dave/development/jetracer_mujoco/meshes/glb_sim2real'
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    glb_path = os.path.join(repo_dir, 'meshes/waveshare-jetracer-for-sim2real/source/sim2real-JetRacer-v0-sketchfab-v2.glb')
+    out_dir = os.path.join(repo_dir, 'meshes/glb_sim2real')
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"Loading GLB from: {glb_path}")

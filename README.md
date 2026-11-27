@@ -202,15 +202,19 @@ Verify all kinematics, actuators, and sensors in headless mode:
 python3 test_rollout.py
 ```
 
-### 3. Interactive MuJoCo Studio (Live WebViewer)
+### 3. Interactive 3D Viewer & Visualizer
 
-Launch the simulation daemon with real-time browser streaming:
+Launch the native hardware-accelerated 3D MuJoCo viewer:
 
 ```bash
-python3 ~/.gemini/config/plugins/robotics/skills/mujoco-studio-sidecar/scripts/studiod.py --workspace_dir=$(pwd)
+python3 -m mujoco.viewer --mjcf=scene.xml
 ```
 
-Open **[http://localhost:8080/](http://localhost:8080/)** in your browser. The arena features **100% visible red & white perimeter barriers**, slalom cones, and start grid.
+Or run the full interactive demo with autonomous figure-8 driving and real-time front-camera HUD:
+
+```bash
+python3 demo.py
+```
 
 ### 4. Real-Time Keyboard Driving (WASD Teleoperation)
 
